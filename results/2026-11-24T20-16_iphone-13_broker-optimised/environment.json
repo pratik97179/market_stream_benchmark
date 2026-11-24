@@ -1,0 +1,19 @@
+{
+  "variant": "broker-optimised",
+  "variantDescription": "Broker-style feed decoded on a background isolate, one coalesced update per frame; option chain, depth and watchlist painted from a glyph atlas.",
+  "device": {
+    "name": "iPhone 13",
+    "manufacturer": "Apple",
+    "model": "iPhone14,5",
+    "chip": "Apple A15 Bionic",
+    "os": "iOS 27.2.1"
+  },
+  "connection": "Wi-Fi, same network as the server",
+  "host": "macOS 27.2",
+  "flutter": {
+    "version": "3.47.9",
+    "dart": "3.13.7"
+  },
+  "date": "2026-11-24",
+  "gitCommit": null
+}

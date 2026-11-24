@@ -1,0 +1,133 @@
+syntax = "proto3";
+
+// Mirrors the message shapes of Sahi's public tick stream
+// (https://docs.sahi.com/api/v1/reference/market-data/), so this benchmark
+// decodes the same kind of payload a real Indian broker sends. Field names
+// and numbers follow Sahi's schema; the package name is our own.
+package sahi_like.marketdata.v1;
+
+enum ExchangeSegment {
+  EXCHANGE_SEGMENT_INVALID = 0;
+  EXCHANGE_SEGMENT_NSE = 1;
+  EXCHANGE_SEGMENT_BSE = 2;
+  EXCHANGE_SEGMENT_NFO = 3;
+  EXCHANGE_SEGMENT_BFO = 4;
+}
+
+enum InstrumentType {
+  INSTRUMENT_TYPE_INVALID = 0;
+  INSTRUMENT_TYPE_INDEX = 1;
+  INSTRUMENT_TYPE_STOCK = 2;
+  INSTRUMENT_TYPE_ETF = 3;
+  INSTRUMENT_TYPE_INDEX_FUT = 4;
+  INSTRUMENT_TYPE_INDEX_OPT_CE = 5;
+  INSTRUMENT_TYPE_INDEX_OPT_PE = 6;
+  INSTRUMENT_TYPE_STOCK_FUT = 7;
+  INSTRUMENT_TYPE_STOCK_OPT_CE = 8;
+  INSTRUMENT_TYPE_STOCK_OPT_PE = 9;
+}
+
+enum Mode {
+  MODE_INVALID = 0;
+  MODE_LTP = 1;
+  MODE_QUOTE = 2;
+  MODE_DEPTH = 3;
+}
+
+// Client -> server. One message per binary frame.
+message ClientMessage {
+  oneof payload {
+    Subscribe subscribe = 1;
+    Unsubscribe unsubscribe = 2;
+    ModeChange mode_change = 3;
+  }
+}
+
+message Subscribe {
+  Mode mode = 1;
+  repeated int64 instrument_ids = 2;
+}
+
+message Unsubscribe {
+  repeated int64 instrument_ids = 1;
+}
+
+message ModeChange {
+  Mode mode = 1;
+  repeated int64 instrument_ids = 2;
+}
+
+// Server -> client. One message per binary frame; every tick is a complete
+// snapshot of its instrument at the subscribed mode.
+message ServerMessage {
+  oneof payload {
+    Ack ack = 1;
+    LtpTick ltp_tick = 2;
+    QuoteTick quote_tick = 3;
+    DepthTick depth_tick = 4;
+    StreamError error = 5;
+  }
+}
+
+enum Action {
+  ACTION_INVALID = 0;
+  ACTION_SUBSCRIBE = 1;
+  ACTION_UNSUBSCRIBE = 2;
+  ACTION_MODE_CHANGE = 3;
+}
+
+message Ack {
+  Action action = 1;
+  repeated int64 instrument_ids = 2;
+}
+
+message StreamError {
+  string code = 1;
+  string message = 2;
+}
+
+// Prices in paise; times in epoch milliseconds.
+message LtpTick {
+  int64 instrument_id = 1;
+  ExchangeSegment exchange_segment = 2;
+  InstrumentType instrument_type = 3;
+  int64 last_trade_price = 4;
+  optional int64 last_trade_time = 5; // absent for indices
+}
+
+message QuoteTick {
+  int64 instrument_id = 1;
+  ExchangeSegment exchange_segment = 2;
+  InstrumentType instrument_type = 3;
+  int64 last_trade_price = 4;
+  optional int64 last_trade_time = 5;
+  int64 volume_today = 6;
+  int64 dpr_upper = 7;
+  int64 dpr_lower = 8;
+  optional int64 prev_open_interest = 9; // derivatives only
+  optional int64 open_interest = 10;     // derivatives only
+}
+
+message DepthLevel {
+  int64 price = 1;
+  int64 qty = 2;
+  int64 num_orders = 3;
+}
+
+message DepthTick {
+  int64 instrument_id = 1;
+  ExchangeSegment exchange_segment = 2;
+  InstrumentType instrument_type = 3;
+  int64 last_trade_price = 4;
+  optional int64 last_trade_time = 5;
+  int64 volume_today = 6;
+  int64 dpr_upper = 7;
+  int64 dpr_lower = 8;
+  optional int64 prev_open_interest = 9;
+  optional int64 open_interest = 10;
+  // Only levels holding orders: up to 5 (L2) or 20 (L3), never zero-padded.
+  repeated DepthLevel best_buys = 11;
+  repeated DepthLevel best_sells = 12;
+  int64 total_buy_qty = 13;
+  int64 total_sell_qty = 14;
+}

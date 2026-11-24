@@ -1,0 +1,20 @@
+{
+  "variant": "broker-isolate",
+  "variantDescription": "Broker-style feed decoded on a background isolate that keeps the newest tick per instrument and hands the UI one update per frame; tables built from Text widgets.",
+  "device": {
+    "name": "Redmi 9A",
+    "manufacturer": "Xiaomi",
+    "model": "M2006C3LI",
+    "chip": "MediaTek Helio G25",
+    "os": "Android 10"
+  },
+  "connection": "USB cable (adb reverse tcp:8080 tcp:8080), app connects to 127.0.0.1",
+  "host": "macOS 27.2",
+  "flutter": {
+    "version": "3.47.9",
+    "dart": "3.13.7"
+  },
+  "date": "2026-11-24",
+  "gitCommit": null,
+  "notes": "Battery 36 %, charging over USB."
+}

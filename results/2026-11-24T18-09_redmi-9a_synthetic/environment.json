@@ -1,0 +1,20 @@
+{
+  "variant": "synthetic",
+  "variantDescription": "Synthetic feed: small events batched per message, decoded on the UI thread, tables built from Text widgets.",
+  "device": {
+    "name": "Redmi 9A",
+    "manufacturer": "Xiaomi",
+    "model": "M2006C3LI",
+    "chip": "MediaTek Helio G25",
+    "os": "Android 10"
+  },
+  "connection": "USB cable (adb reverse tcp:8080 tcp:8080), app connects to 127.0.0.1",
+  "host": "macOS 27.2",
+  "flutter": {
+    "version": "3.47.9",
+    "dart": "3.13.7"
+  },
+  "date": "2026-11-24",
+  "gitCommit": null,
+  "notes": "Battery 33 %, charging over USB."
+}
