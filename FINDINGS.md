@@ -8,17 +8,17 @@ environment. To check them on your own phones, see
 
 ## Summary
 
-1. **Protobuf is 2–3× faster to decode and 5–6× smaller** than JSON for the same
-   market data, on every phone, feed shape and load tested.
-2. **In a typical app, decoding on the UI thread, a busy feed made a budget
-   phone stutter with either format.** JSON made it measurably worse; Protobuf
-   did not make it usable.
-3. **Engineering changes, not the format, made it smooth.** The same budget
-   phone went from 13 fps to 58 fps at expiry-day load without changing the
-   wire format.
-4. **Once the app was optimised, both formats looked the same on screen.**
-   Protobuf's remaining advantage is efficiency: 6× less data and ~40 % less
-   background CPU.
+**Protobuf makes the app cheaper to run, not smoother.**
+
+1. **Protobuf saves data and CPU.** For the same feed it used 84 % less data
+   (6× smaller messages), decoded each message 2–2.7× faster and spent 39–55 %
+   less CPU on decoding. This held on every phone, feed and load tested.
+2. **It did not change how smooth the app was.** Switching format moved the frame
+   rate by 1–2 fps. In a typical app a busy feed made a budget phone stutter at
+   13–14 fps with *either* format.
+3. **How the app was built decided smoothness.** Decoding in the background and
+   drawing the busy tables cheaply took the same phone from 13 to ~58 fps, with
+   either format.
 
 ## Test environment
 
@@ -47,7 +47,24 @@ Sahi streams Protobuf only, so the JSON side is the same ticks written the way a
 REST API would (snake_case keys, numeric paise). Both decode into the same
 objects, and both formats receive the identical, seeded tick sequence.
 
-## 1. Protobuf decodes faster and is smaller, everywhere
+## 1. What Protobuf saves
+
+The optimised app at heavy load (1,000 instruments, ~4,000 messages per second):
+
+| | JSON | Protobuf | Protobuf saves |
+|---|---|---|---|
+| Data received | 1.07 MB/s (3.8 GB/hour) | 0.17 MB/s (0.6 GB/hour) | 84 % less data |
+| Decode per message, [Redmi 9A](results/2026-11-24T19-50_redmi-9a_broker-optimised/REPORT.md) | 56.0 µs | 28.2 µs | 2.0× faster |
+| Decode per message, [iPhone 13](results/2026-11-24T20-16_iphone-13_broker-optimised/REPORT.md) | 16.4 µs | 6.0 µs | 2.7× faster |
+| CPU spent decoding (share of one core), Redmi 9A | 26.5 % | 16.1 % | 39 % less |
+| CPU spent decoding (share of one core), iPhone 13 | 7.5 % | 3.4 % | 55 % less |
+| Tick age when shown, p99, Redmi 9A | 32 ms | 28 ms | 4 ms sooner |
+
+At normal load (a 100-instrument watchlist, ~200 messages per second) it is
+202 MB vs 32 MB of data per hour. In practice: less mobile data, less battery
+drain and heat, and headroom for more instruments.
+
+The saving is consistent across every run, phone and feed shape:
 
 | Run | Decode per message, JSON / Protobuf | Size per message, JSON / Protobuf |
 |---|---|---|
@@ -58,7 +75,9 @@ objects, and both formats receive the identical, seeded tick sequence.
 
 Heavy load. The ratio held in every round of every run.
 
-## 2. A typical app stutters with either format
+## 2. What Protobuf doesn't change: smoothness
+
+### A typical app stutters with either format
 
 [Redmi 9A, broker feed, decoded on the UI thread](results/2026-11-24T19-04_redmi-9a_broker-ui-thread/REPORT.md)
 (variant `broker-ui-thread`), heavy load:
@@ -75,7 +94,7 @@ the UI thread also handled 4,000 separate messages per second and rebuilt the
 busy tables every frame. At normal load the two formats were identical (8.8 %
 of frames missed the deadline with each).
 
-## 3. Engineering made it smooth
+### Engineering made it smooth, with either format
 
 The same phone, feed and load, through three versions of the app:
 
@@ -85,6 +104,13 @@ The same phone, feed and load, through three versions of the app:
 | [`broker-isolate`](results/2026-11-24T19-25_redmi-9a_broker-isolate/REPORT.md) | Decode on a background isolate; keep only the newest tick per instrument; one update to the UI per frame | 21 | 17 |
 | [`broker-optimised`](results/2026-11-24T19-50_redmi-9a_broker-optimised/REPORT.md) | Also paint the option chain, depth and watchlist from a glyph atlas, with no widget rebuilds or text layout per frame | **57** | **59** |
 
+**Read across a row for the format, down a column for the engineering.** The
+format moves fps by a few frames in either direction; the engineering moves it
+from 13 to ~58. In the last two rows decoding is no longer on the UI thread, so
+the format cannot directly affect frames. The small differences there, such as
+21 vs 17, are noise and sometimes favour JSON, most likely because the busier
+JSON worker keeps the CPU clocked higher, which also speeds up drawing.
+
 - **Background decoding** removed the format from the UI thread entirely: the
   time a frame waited for the UI thread fell to ~1.2 ms for both formats. Frames
   were still slow because building ~250 changing Text widgets took 33–43 ms per
@@ -92,29 +118,10 @@ The same phone, feed and load, through three versions of the app:
 - **Painted tables** cut frame build time to ~5 ms. The remaining slow frames come
   from the GPU (raster p95 16.4–17.3 ms against a 16.7 ms budget), which no data
   format can change.
-- **Small fps differences between formats in the last two rows are noise.** Once
-  decoding is off the UI thread, the format cannot directly affect frames. They
-  sometimes favour JSON, most likely because the busier JSON worker keeps the CPU
-  clocked higher, which also speeds up drawing.
 
 On the [iPhone 13](results/2026-11-24T20-16_iphone-13_broker-optimised/REPORT.md)
 the optimised app rendered 60 fps with 0 % missed frames for both formats, using
 about 2 ms of the 16.7 ms frame budget.
-
-## 4. What Protobuf buys in an optimised app
-
-[Redmi 9A, `broker-optimised`](results/2026-11-24T19-50_redmi-9a_broker-optimised/REPORT.md),
-heavy load:
-
-| | JSON | Protobuf |
-|---|---|---|
-| Data received | 1.07 MB/s | 0.17 MB/s (6.1× less) |
-| Decode per message | 56.0 µs | 28.2 µs (2.0× faster) |
-| Background isolate CPU (share of one core) | 26.5 % | 16.1 % (~40 % less) |
-| Tick age when shown, p99 | 32 ms | 28 ms |
-
-Users see the same screen. The difference is mobile data, battery and heat, and
-headroom for more instruments or features.
 
 ## Caveats
 

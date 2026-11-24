@@ -1,24 +1,46 @@
 # Market Stream Benchmark
 
 Does sending real-time market data as **Protobuf** instead of **JSON** make a
-Flutter trading app better? This project measures it on a real trading screen
-(option chain, 20-level market depth, live candles, watchlist) on real phones,
-with a feed shaped like an Indian broker's.
+Flutter trading app better? I measured it on a real trading screen (option
+chain, 20-level market depth, live candles, watchlist) on a budget Android phone
+and an iPhone, with a feed shaped like an Indian broker's.
 
-**What I found** ([details and every number](FINDINGS.md)): Protobuf was 2–3×
-faster to decode and 5–6× smaller on every phone. In a typical app, a busy feed
-made a budget phone stutter with *either* format. Engineering changes took the
-same phone from 13 to 58 fps without changing the format, and after that the
-formats looked the same on screen. Protobuf's remaining advantage was less data
-and less CPU.
+## Result: Protobuf makes the app cheaper to run, not smoother
 
-| Redmi 9A (budget phone), ~4,000 messages/s | JSON | Protobuf |
+### What Protobuf saves
+
+Same app, same market feed, heavy load (1,000 instruments, ~4,000 messages per
+second):
+
+| | JSON | Protobuf | Protobuf saves |
+|---|---|---|---|
+| **Data received** | 1.07 MB/s (3.8 GB/hour) | 0.17 MB/s (0.6 GB/hour) | **84 % less data** |
+| **Time to decode a message**, Redmi 9A | 56 µs | 28 µs | **2× faster** |
+| **Time to decode a message**, iPhone 13 | 16.4 µs | 6.0 µs | **2.7× faster** |
+| **CPU spent decoding** (share of one core), Redmi 9A | 26.5 % | 16.1 % | **39 % less CPU** |
+| **CPU spent decoding** (share of one core), iPhone 13 | 7.5 % | 3.4 % | **55 % less CPU** |
+
+At a calmer load (a 100-instrument watchlist, ~200 messages per second) it is
+202 MB vs 32 MB of data per hour. Less data and less CPU mean lower mobile-data
+use, less battery drain and heat, and headroom for more instruments.
+
+### What Protobuf doesn't change: smoothness
+
+| Redmi 9A at heavy load | JSON | Protobuf |
 |---|---|---|
-| Typical app: decode on the UI thread | 13 fps | 14 fps |
-| + decode on a background isolate, newest tick per instrument | 21 fps | 17 fps |
-| + paint the busy tables instead of rebuilding widgets | 57 fps | 59 fps |
+| Typical app (decodes on the UI thread) | 13 fps | 14 fps |
+| Optimised app (decodes in the background, draws tables cheaply) | 57 fps | 59 fps |
 
-Don't take my word for it: run it on your own phones.
+**Switching the format moved the frame rate by 1–2 fps. Changing how the app
+is built took it from 13 to ~58 fps.** On the iPhone 13 the optimised app ran at
+a steady 60 fps with both formats. If a trading app stutters, Protobuf alone
+won't fix it.
+
+[FINDINGS.md](FINDINGS.md) has every step in between, every number and the
+test environment; each number links to the raw run behind it.
+
+**Don't take my word for it:** the rest of this page shows how to run the same
+test on your own phones.
 
 ## Reproducing
 
@@ -35,7 +57,7 @@ Don't take my word for it: run it on your own phones.
 ### Run it
 
 ```bash
-git clone <this repo>
+git clone https://github.com/pratik97179/market_stream_benchmark.git
 cd market_stream_benchmark
 flutter pub get
 flutter devices                      # find your phone's id
